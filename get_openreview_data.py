@@ -4,7 +4,8 @@ saves event metadata to tsv, and
 saves paper revisions to pdf and Notes to json.
 1. Paper revisions, picked according to tmdate since our retrieved contents were submitted at tmdate
   a) pre-rebuttal: the last submission revision before the review release or rebuttal starting time
-  b) rebuttal: the last rebuttal revision before the rebuttal ending time
+  b) rebuttal: the last rebuttal revision before the
+  rebuttal ending time
   c) final: the last revision which is assumed to be the camera ready version (some conferences
      do not have camera ready deadlines)
 2. Comments from reviewers, authors, and metareviewers
@@ -25,7 +26,6 @@ The output paths are
 """
 
 import argparse
-import collections
 import csv
 import hashlib
 import json
@@ -46,21 +46,23 @@ parser.add_argument("-f", "--offset", default=0, type=int,
                     help="skip a number of submissions")
 parser.add_argument("-b", "--batch_size", default=None, type=int,
                     help="if set, process just a small number of submissions to test this script")
-parser.add_argument("-o", "--output_dir", default="data/", type=str,
+parser.add_argument("-o", "--output_dir", default="data4/", type=str,
                     help="output directory for metadata tsv, json, and pdf files")
 parser.add_argument("--debug", action='store_true', help="only process one batch")
 
 
-##### HELPERS #####
+# === HELPERS ===
 def make_path(directories, filename=None):
     directory = os.path.join(*directories)
     os.makedirs(directory, exist_ok=True)
     if filename is not None:
         return os.path.join(*directories, filename)
 
+
 def write_note_json(note, json_path):
     with open(json_path, "w") as f:
         json.dump(note.to_json(), f)
+
 
 def get_pdf_status(note, is_reference=True):
     try:  # try to get the PDF for this paper revision
@@ -73,13 +75,24 @@ def get_pdf_status(note, is_reference=True):
         pdf_checksum = "None"
     return pdf_status, pdf_binary, pdf_checksum
 
+
 def write_pdf(pdf_binary, pdf_path):
     assert pdf_binary != "None"
     with open(pdf_path, "wb") as f:
         f.write(pdf_binary)
 
 
-##### PRODUCE DATA #####
+def maybe_get_revision(note):
+    if note is None:
+        return None
+    pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
+    if pdf_status == orl.PDFStatus.AVAILABLE:
+        return note, pdf_status, pdf_binary, pdf_checksum
+    else:
+        return None
+
+
+# === PRODUCE DATA ===
 def process_manuscript_revisions(forum_note, forum_idx, forum_dir, args):
     forum_id = forum_note.id
     original_id = forum_note.original
@@ -94,51 +107,26 @@ def process_manuscript_revisions(forum_note, forum_idx, forum_dir, args):
     # loop over paper revisions to find three desired ones
     references = sorted(
         GUEST_CLIENT.get_all_references(referent=forum_id, original=True),
-        key=lambda x: x.tmdate, # our retrieved contents are updated at tmdate
-        reverse=True
+        key=lambda x: x.tmdate,  # our retrieved contents are updated at tmdate
     )
+
+    previous_note = None
+    review_notification_time = conflib.CONFERENCE_TO_TIMES[args.conference]["review_notification"]
+    decision_notification_time = conflib.CONFERENCE_TO_TIMES[args.conference]["decision_notification"]
+
     for note in references:
-        # In case the original submission note is unexpectedly returned as a reference to
-        # the blind submission note, ignore it. This happens for ICLR 2018.
         if note.id == original_id:
             continue
-
-        if note.tmdate <= conflib.CONFERENCE_TO_TIMES[args.conference]["review_notification"]:
-            if (
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION] is None or
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION][0].tmdate < note.tmdate
-            ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
-
-        elif note.tmdate <= conflib.CONFERENCE_TO_TIMES[args.conference]["decision_notification"]:
-            if (
-                    revisions[orl.EventType.REBUTTAL_REVISION] is None or
-                    revisions[orl.EventType.REBUTTAL_REVISION][0].tmdate < note.tmdate
-            ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.REBUTTAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
-
-        else: # note.tmdate > conflib.CONFERENCE_TO_TIMES[args.conference]["decision_notification"]
-            if (
-                    revisions[orl.EventType.FINAL_REVISION] is None or
-                    revisions[orl.EventType.FINAL_REVISION][0].tmdate < note.tmdate
-            ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.FINAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
-
-    # the forum note has the same pdf as the last revision, which typically is our retrieved final_revision
-    # pdf_status, pdf_binary, pdf_checksum = get_pdf_status(forum_note, is_reference=False)
-    # if pdf_status == orl.PDFStatus.AVAILABLE:
-    #     if revisions[orl.EventType.FINAL_REVISION] is not None:
-    #         assert pdf_checksum == revisions[orl.EventType.FINAL_REVISION][-1]
-    #     elif revisions[orl.EventType.REBUTTAL_REVISION] is not None:
-    #         assert pdf_checksum == revisions[orl.EventType.REBUTTAL_REVISION][-1]
-    #     else:
-    #         assert pdf_checksum == revisions[orl.EventType.PRE_REBUTTAL_REVISION][-1]
+        else:
+            if note.tmdate > review_notification_time and revisions[orl.EventType.PRE_REBUTTAL_REVISION] is None:
+                # Current note is the first AFTER review notification -- previous is the pre-rebuttal revision
+                revisions[orl.EventType.PRE_REBUTTAL_REVISION] = maybe_get_revision(previous_note)
+            if note.tmdate > decision_notification_time and revisions[orl.EventType.REBUTTAL_REVISION] is None:
+                # Current note is the first AFTER decision notification -- previous is the rebuttal revision
+                revisions[orl.EventType.REBUTTAL_REVISION] = maybe_get_revision(previous_note)
+            previous_note = note
+    # the last note is the final revision
+    revisions[orl.EventType.FINAL_REVISION] = maybe_get_revision(previous_note)
 
     # create events and save files
     events = []
@@ -165,7 +153,7 @@ def process_manuscript_revisions(forum_note, forum_idx, forum_dir, args):
         events.append(orl.Event(
             # Identifiers
             forum_idx=forum_idx,
-            forum_id=forum_id, # we don't use note.forum which may be None
+            forum_id=forum_id,  # we don't use note.forum which may be None
             referent_id=forum_id,
             revision_index=revision_index,
             note_id=note.id,
@@ -212,7 +200,7 @@ def process_comment(comment_note, forum_idx, forum_id, forum_comment_dir):
         events.append(orl.Event(
             # Identifiers
             forum_idx=forum_idx,
-            forum_id=forum_id, # we don't use note.forum which may be None
+            forum_id=forum_id,  # we don't use note.forum which may be None
             referent_id=note.referent if note.referent is not None else "None",
             revision_index=revision_index,
             note_id=note.id,
