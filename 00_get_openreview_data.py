@@ -25,12 +25,12 @@ parser.add_argument(
 parser.add_argument(
     "-b",
     "--batch_size",
-    default=10,
+    default=100,
     type=int,
 )
 parser.add_argument(
-    "-o",
-    "--output_dir",
+    "-d",
+    "--data_dir",
     default="data/",
     type=str,
     help="output directory for metadata tsv, json, and pdf files",
@@ -337,7 +337,7 @@ def main():
         batch_end = batch_start + batch_size
         for forum_note in tqdm.tqdm(conference_notes[batch_start:batch_end]):
             forum_dir = os.path.join(
-                args.output_dir, args.conference, forum_note.id
+                args.data_dir, args.conference, forum_note.id
             )  # for {pre-rebuttal, rebuttal, final}_revision.{pdf, json}
 
             os.makedirs(forum_dir, exist_ok=True)
