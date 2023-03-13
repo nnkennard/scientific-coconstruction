@@ -1,5 +1,5 @@
 from datetime import datetime as dt
-import time, pytz
+import pytz
 
 
 CONFERENCE_TO_INVITATION = {
@@ -31,9 +31,20 @@ candidate to avoid missing a revision during rebuttal.
 """
 CONFERENCE_TO_TIMES = {
     "iclr_2022": {
-        "review_notification":   dt_to_unix(dt(2021, 11, 9, 6, 32, 0)),
+        "review_notification": dt_to_unix(dt(2021, 11, 9, 6, 32, 0)),
         "decision_notification": dt_to_unix(dt(2022, 1, 20, 18, 35, 0)),
+    },
+    "iclr_2021": {
+        "review_notification": dt_to_unix(dt(2020, 11, 10, 16, 32, 0)),
+        "decision_notification": dt_to_unix(dt(2021, 1, 12, 17, 58, 0)),
+    },
+    "iclr_2020": {
+        "review_notification": dt_to_unix(dt(2019, 11, 5, 17, 4, 0)),
+        "decision_notification": dt_to_unix(dt(2019, 12, 20, 2, 59, 0)),
     },
 }
 for conf in CONFERENCE_TO_TIMES:
-    assert CONFERENCE_TO_TIMES[conf]["review_notification"] < CONFERENCE_TO_TIMES[conf]["decision_notification"]
+    assert (
+        CONFERENCE_TO_TIMES[conf]["review_notification"]
+        < CONFERENCE_TO_TIMES[conf]["decision_notification"]
+    )

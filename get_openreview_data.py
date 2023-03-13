@@ -1,33 +1,5 @@
-"""
-This script collects the following events from Open Review,
-saves event metadata to tsv, and
-saves paper revisions to pdf and Notes to json.
-1. Paper revisions, picked according to tmdate since our retrieved contents were submitted at tmdate
-  a) pre-rebuttal: the last submission revision before the review release or rebuttal starting time
-  b) rebuttal: the last rebuttal revision before the rebuttal ending time
-  c) final: the last revision which is assumed to be the camera ready version (some conferences
-     do not have camera ready deadlines)
-2. Comments from reviewers, authors, and metareviewers
-  a) review revisions (with ratings), other comments from reviewers
-  b) rebuttals, i.e. author comments,
-  c) metareviews (with decisions), other comments from metareviewers
-
-The following events are ignored
-1. other paper revisions
-2. comments from people other than authors, reviewers, and metareviewers
-
-The output paths are
- - {args.output_dir} / metadata_{args.conference}*.tsv
- - {args.output_dir} / {args.conference} / {forum_id} / pre-rebuttal_revision.{pdf, json}
- - {args.output_dir} / {args.conference} / {forum_id} / rebuttal_revision.{pdf, json}
- - {args.output_dir} / {args.conference} / {forum_id} / final_revision.{pdf, json}
- - {args.output_dir} / {args.conference} / {forum_id} / comments / {comment_id}_{revision_index}.json
-"""
-
 import argparse
 import collections
-import csv
-import hashlib
 import json
 import math
 import os
@@ -40,38 +12,64 @@ import conference_lib as conflib
 GUEST_CLIENT = openreview.Client(baseurl="https://api.openreview.net")
 
 parser = argparse.ArgumentParser(description="")
-parser.add_argument("-c", "--conference", type=str, choices=conflib.CONFERENCE_TO_INVITATION.keys(),
-                    help="conference_year, e.g. iclr_2022")
-parser.add_argument("-f", "--offset", default=0, type=int,
-                    help="skip a number of submissions")
-parser.add_argument("-b", "--batch_size", default=None, type=int,
-                    help="if set, process just a small number of submissions to test this script")
-parser.add_argument("-o", "--output_dir", default="data/", type=str,
-                    help="output directory for metadata tsv, json, and pdf files")
-parser.add_argument("--debug", action='store_true', help="only process one batch")
+parser.add_argument(
+    "-c",
+    "--conference",
+    type=str,
+    choices=conflib.CONFERENCE_TO_INVITATION.keys(),
+    help="conference_year, e.g. iclr_2022",
+)
+parser.add_argument(
+    "-f", "--offset", default=0, type=int, help="skip a number of submissions"
+)
+parser.add_argument(
+    "-b",
+    "--batch_size",
+    default=10,
+    type=int,
+)
+parser.add_argument(
+    "-o",
+    "--output_dir",
+    default="data/",
+    type=str,
+    help="output directory for metadata tsv, json, and pdf files",
+)
+parser.add_argument("--debug", action="store_true", help="only process one batch")
+
+Revision = collections.namedtuple("Revision", "event_type path tmdate")
+
+Review = collections.namedtuple(
+    "Review", "review_id review_content reviewer tcdate tmdate"
+)
+
+Rebuttal = collections.namedtuple(
+    "Rebuttal", "rebuttal_ids rebuttal_content tcdate tmdate"
+)
+
+ReviewRebuttalPair = collections.namedtuple("ReviewRebuttalPair", "review rebuttal")
+
+Forum = collections.namedtuple(
+    "Forum", "forum_id decision metareview_text review_rebuttal_pairs versions"
+)
 
 
-##### HELPERS #####
+# === PDF HELPERS ===
 def make_path(directories, filename=None):
     directory = os.path.join(*directories)
-    os.makedirs(directory, exist_ok=True)
     if filename is not None:
         return os.path.join(*directories, filename)
 
-def write_note_json(note, json_path):
-    with open(json_path, "w") as f:
-        json.dump(note.to_json(), f)
 
 def get_pdf_status(note, is_reference=True):
     try:  # try to get the PDF for this paper revision
         pdf_binary = GUEST_CLIENT.get_pdf(note.id, is_reference=is_reference)
-        pdf_checksum = hashlib.md5(pdf_binary).hexdigest()
         pdf_status = orl.PDFStatus.AVAILABLE
     except openreview.OpenReviewException as e:
         pdf_status = orl.PDF_ERROR_STATUS_LOOKUP[e.args[0]["name"]]
         pdf_binary = "None"
-        pdf_checksum = "None"
-    return pdf_status, pdf_binary, pdf_checksum
+    return pdf_status, pdf_binary
+
 
 def write_pdf(pdf_binary, pdf_path):
     assert pdf_binary != "None"
@@ -79,11 +77,20 @@ def write_pdf(pdf_binary, pdf_path):
         f.write(pdf_binary)
 
 
-##### PRODUCE DATA #####
-def process_manuscript_revisions(forum_note, forum_idx, forum_dir, args):
-    forum_id = forum_note.id
-    original_id = forum_note.original
+def maybe_get_revision(note):
+    if note is None:
+        return None, None
+    pdf_status, pdf_binary = get_pdf_status(note)
+    if pdf_status == orl.PDFStatus.AVAILABLE:
+        return pdf_binary, note.tmdate
+    else:
+        return None, None
 
+
+# === PRODUCE DATA ===
+
+
+def get_milestone_revisions(forum_note, conference, forum_dir):
     # we care about the last revision in each of three stages
     revisions = {
         orl.EventType.PRE_REBUTTAL_REVISION: None,
@@ -93,218 +100,251 @@ def process_manuscript_revisions(forum_note, forum_idx, forum_dir, args):
 
     # loop over paper revisions to find three desired ones
     references = sorted(
-        GUEST_CLIENT.get_all_references(referent=forum_id, original=True),
-        key=lambda x: x.tmdate, # our retrieved contents are updated at tmdate
-        reverse=True
+        GUEST_CLIENT.get_all_references(referent=forum_note.id, original=True),
+        key=lambda x: x.tmdate,  # our retrieved contents are updated at tmdate
     )
+
+    previous_note = None
+    review_notification_time = conflib.CONFERENCE_TO_TIMES[conference][
+        "review_notification"
+    ]
+    decision_notification_time = conflib.CONFERENCE_TO_TIMES[conference][
+        "decision_notification"
+    ]
+
+    # for note in references:
+    #    print_timestamp(note.tmdate)
+
     for note in references:
-        # In case the original submission note is unexpectedly returned as a reference to
-        # the blind submission note, ignore it. This happens for ICLR 2018.
-        if note.id == original_id:
+        if note.id == forum_note.original:
             continue
-
-        if note.tmdate <= conflib.CONFERENCE_TO_TIMES[args.conference]["review_notification"]:
+        else:
             if (
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION] is None or
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION][0].tmdate < note.tmdate
+                note.tmdate > review_notification_time
+                and revisions[orl.EventType.PRE_REBUTTAL_REVISION] is None
             ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.PRE_REBUTTAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
-
-        elif note.tmdate <= conflib.CONFERENCE_TO_TIMES[args.conference]["decision_notification"]:
+                # Current note is the first AFTER review notification -- previous is the pre-rebuttal revision
+                revisions[orl.EventType.PRE_REBUTTAL_REVISION] = maybe_get_revision(
+                    previous_note
+                )
             if (
-                    revisions[orl.EventType.REBUTTAL_REVISION] is None or
-                    revisions[orl.EventType.REBUTTAL_REVISION][0].tmdate < note.tmdate
+                note.tmdate > decision_notification_time
+                and revisions[orl.EventType.REBUTTAL_REVISION] is None
             ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.REBUTTAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
+                # Current note is the first AFTER decision notification -- previous is the rebuttal revision
+                revisions[orl.EventType.REBUTTAL_REVISION] = maybe_get_revision(
+                    previous_note
+                )
+                break
+            previous_note = note
+    # the last valid note is the final revision
+    for note in reversed(references):
+        if revisions[orl.EventType.FINAL_REVISION] in [None, (None, None)]:
+            revisions[orl.EventType.FINAL_REVISION] = maybe_get_revision(note)
+        else:
+            break
 
-        else: # note.tmdate > conflib.CONFERENCE_TO_TIMES[args.conference]["decision_notification"]
-            if (
-                    revisions[orl.EventType.FINAL_REVISION] is None or
-                    revisions[orl.EventType.FINAL_REVISION][0].tmdate < note.tmdate
-            ):
-                pdf_status, pdf_binary, pdf_checksum = get_pdf_status(note)
-                if pdf_status == orl.PDFStatus.AVAILABLE:
-                    revisions[orl.EventType.FINAL_REVISION] = (note, pdf_status, pdf_binary, pdf_checksum)
+    for milestone, maybe_revision in revisions.items():
+        # print(milestone, end=" ")
+        flag = False
+        if maybe_revision is not None:
+            pdf_binary, x = maybe_revision
+            # print_timestamp(x)
+            flag = True
+            if pdf_binary is not None:
+                write_pdf(pdf_binary, make_path([forum_dir], f"{milestone}.pdf"))
+        if not flag:
+            print(None)
 
-    # the forum note has the same pdf as the last revision, which typically is our retrieved final_revision
-    # pdf_status, pdf_binary, pdf_checksum = get_pdf_status(forum_note, is_reference=False)
-    # if pdf_status == orl.PDFStatus.AVAILABLE:
-    #     if revisions[orl.EventType.FINAL_REVISION] is not None:
-    #         assert pdf_checksum == revisions[orl.EventType.FINAL_REVISION][-1]
-    #     elif revisions[orl.EventType.REBUTTAL_REVISION] is not None:
-    #         assert pdf_checksum == revisions[orl.EventType.REBUTTAL_REVISION][-1]
-    #     else:
-    #         assert pdf_checksum == revisions[orl.EventType.PRE_REBUTTAL_REVISION][-1]
+    # print("=" * 80)
+    return sorted(revisions.items())
+
+
+def process_manuscript_revisions(forum_note, forum_dir, conference):
+    revisions = get_milestone_revisions(forum_note, conference, forum_dir)
 
     # create events and save files
     events = []
-    for event_type in revisions:
-        if revisions[event_type] is None:
-            continue
+    for event_type, maybe_revision in revisions:
+        if maybe_revision is not None:
+            pdf_binary, revision_tmdate = maybe_revision
+            if pdf_binary is not None:
+                pdf_path = make_path([forum_dir], f"{event_type}.pdf")
+                write_pdf(pdf_binary, pdf_path)
+                events.append(Revision(event_type, pdf_path, revision_tmdate))
+            else:
+                events.append(Revision(event_type, None, None))
 
-        note, pdf_status, pdf_binary, pdf_checksum = revisions[event_type]
-
-        assert note.referent == forum_id
-        revision_index = orl.REVISION_TO_INDEX[event_type]
-        assert note.replyto is None
-        initiator, initiator_type = orl.get_initiator_and_type(note.signatures)
-        assert initiator_type == orl.InitiatorType.CONFERENCE
-
-        # save json
-        json_path = make_path([forum_dir], f"{event_type}.json")
-        write_note_json(note, json_path)
-        # save pdf
-        pdf_path = make_path([forum_dir], f"{event_type}.pdf")
-        write_pdf(pdf_binary, pdf_path)
-
-        # create an Event for this note
-        events.append(orl.Event(
-            # Identifiers
-            forum_idx=forum_idx,
-            forum_id=forum_id, # we don't use note.forum which may be None
-            referent_id=forum_id,
-            revision_index=revision_index,
-            note_id=note.id,
-            reply_to=note.replyto,
-            # Event creator info
-            initiator=initiator,
-            initiator_type=initiator_type,
-            # Date info
-            creation_date=note.tcdate,
-            mod_date=note.tmdate,
-            # Event type info
-            event_type=event_type,
-            # File info
-            json_path=json_path,
-            pdf_status=pdf_status,
-            pdf_path=pdf_path,
-            pdf_checksum=pdf_checksum,
-        ))
-
+        else:
+            events.append(Revision(event_type, None, None))
     return events
 
 
-def process_comment(comment_note, forum_idx, forum_id, forum_comment_dir):
-    events = []
+# Review helpers
 
-    # classify the comment
-    event_type = orl.get_comment_event_type(comment_note)
 
-    # Official Review may have multiple revisions, others comments do not
-    if event_type == orl.EventType.REVIEW:
-        notes = [comment_note] + GUEST_CLIENT.get_all_references(referent=comment_note.id)
+def export_signature(note):
+    (signature,) = note.signatures
+    return signature.split("/")[-1]
+
+
+def get_replies(note, discussion_notes):
+    return [x for x in discussion_notes if x.replyto == note.id]
+
+
+def get_longest_thread(top_note, discussion_notes):
+    threads = [[top_note]]
+    while True:
+        new_threads = []
+        for thread in threads:
+            thread_last = thread[-1]
+            candidates = [
+                c
+                for c in get_replies(thread_last, discussion_notes)
+                if c.signatures == thread_last.signatures
+            ]
+            for candidate in candidates:
+                new_threads.append(thread + [candidate])
+        if not new_threads:
+            break
+        threads = new_threads
+    return max(threads, key=lambda x: len(x))
+
+
+def get_rebuttal_thread(review_note, forum_notes):
+    possible_rebuttal_starts = [
+        n
+        for n in forum_notes
+        if n.replyto == review_note.id and "Authors" in n.signatures[0]
+    ]
+    if not possible_rebuttal_starts:
+        return []
+    longest_rebuttal_threads = [
+        get_longest_thread(p, forum_notes) for p in possible_rebuttal_starts
+    ]
+
+    return sorted(longest_rebuttal_threads, key=lambda x: (-len(x), x[0].tcdate))[0]
+
+
+def get_reviews(forum_notes):
+    review_notes = []
+    rebuttal_threads = []
+    for note in forum_notes:
+        if note.replyto == note.forum:
+            if (
+                "main_review" in note.content
+                or "review" in note.content  # 2022  # 2020
+            ):
+                review_notes.append(note)  # 2022 does not have weird threads
+                rebuttal_threads.append(get_rebuttal_thread(note, forum_notes))
+
+    if not review_notes:
+        return []
+
+    review_rebuttal_pairs = []
+    for review_note, rebuttal_thread in zip(review_notes, rebuttal_threads):
+        review_rebuttal_pairs.append(
+            ReviewRebuttalPair(
+                Review(
+                    review_note.id,
+                    json.dumps(review_note.content),
+                    export_signature(review_note),
+                    review_note.tcdate,
+                    review_note.tmdate,
+                ),
+                Rebuttal(
+                    [n.id for n in rebuttal_thread],
+                    [json.dumps(n.content) for n in rebuttal_thread],
+                    min(n.tcdate for n in rebuttal_thread) if rebuttal_thread else None,
+                    max(n.tmdate for n in rebuttal_thread) if rebuttal_thread else None,
+                ),
+            )
+        )
+    return review_rebuttal_pairs
+
+
+def get_metareview(forum_notes):
+    for note in forum_notes:
+        if "decision" in note.content and 'comment' in note.content:
+            return note.content["decision"], note.content["comment"]
+
+    assert False
+
+
+def process_forum(forum_note, forum_dir, conference):
+    # three revisions: pre-rebuttal, rebuttal, final
+
+    revisions = process_manuscript_revisions(forum_note, forum_dir, conference)
+    forum_notes = sorted(
+        GUEST_CLIENT.get_all_notes(forum=forum_note.id), key=lambda x: x.tcdate
+    )
+    review_rebuttal_pairs = get_reviews(forum_notes)
+
+    assert forum_note.id is not None
+    decision, metareview_text = get_metareview(forum_notes)
+
+    with open(f"{forum_dir}/discussion.json", "w") as f:
+        json.dump(
+            jsonify_forum(
+                Forum(
+                    forum_note.id,
+                    decision,
+                    metareview_text,
+                    review_rebuttal_pairs,
+                    revisions,
+                )
+            ),
+            f,
+        )
+
+
+def jsonify_forum(forum):
+    forum_dict = forum._asdict()
+    forum_dict["review_rebuttal_pairs"] = [
+        {"review": p.review._asdict(), "rebuttal": p.rebuttal._asdict()}
+        for p in forum_dict["review_rebuttal_pairs"]
+    ]
+    return forum_dict
+
+
+def get_batch_size(batch_size, forum_notes):
+    if batch_size is None or batch_size <= 0:
+        return len(forum_notes)
     else:
-        # other comments don't have revisions, just save the comments notes
-        notes = [comment_note]
-
-    for revision_index, note in enumerate(notes):
-        initiator, initiator_type = orl.get_initiator_and_type(note.signatures)
-
-        # save json
-        json_path = make_path([forum_comment_dir], f"{comment_note.id}_{revision_index}.json")
-        write_note_json(note, json_path)
-
-        # create an Event for this note
-        events.append(orl.Event(
-            # Identifiers
-            forum_idx=forum_idx,
-            forum_id=forum_id, # we don't use note.forum which may be None
-            referent_id=note.referent if note.referent is not None else "None",
-            revision_index=revision_index,
-            note_id=note.id,
-            reply_to=note.replyto,
-            # Event creator info
-            initiator=initiator,
-            initiator_type=initiator_type,
-            # Date info
-            creation_date=note.tcdate,
-            mod_date=note.tmdate,
-            # Event type info
-            event_type=event_type,
-            # File info
-            json_path=json_path,
-            pdf_status=orl.PDFStatus.NOT_APPLICABLE,
-            pdf_path="None",
-            pdf_checksum="None",
-        ))
-
-    return events
+        return batch_size
 
 
 def main():
     args = parser.parse_args()
     assert args.conference in conflib.CONFERENCE_TO_INVITATION
-    print(conflib.CONFERENCE_TO_TIMES[args.conference])
 
     # Get all 'forum' notes (blind submission notes) from the conference; one forum note per paper
-    forum_notes = sorted(
-        GUEST_CLIENT.get_all_notes(invitation=conflib.CONFERENCE_TO_INVITATION[args.conference]),
+    conference_notes = sorted(
+        GUEST_CLIENT.get_all_notes(
+            invitation=conflib.CONFERENCE_TO_INVITATION[args.conference]
+        ),
         key=lambda x: x.tcdate,
-    )[:100]
+    )[args.offset :]
 
-    if args.batch_size is None or args.batch_size <= 0:
-        args.batch_size = len(forum_notes) - args.offset
-        n_batches = 1
-    else:
-        n_batches = math.ceil((len(forum_notes) - args.offset) / args.batch_size)
+    # This is all very tedious but required because of processes sometimes getting killed
+    batch_size = get_batch_size(args.batch_size, conference_notes)
+    n_batches = math.ceil(len(conference_notes) / batch_size)
 
     # loop over batches
     for i in tqdm.tqdm(range(n_batches)):
-        events = []
-
         # loop over forums in this batch
-        for j, forum_note in enumerate(tqdm.tqdm(
-                forum_notes[args.offset + i * args.batch_size: args.offset + (i + 1) * args.batch_size]
-        )):
-            forum_idx = args.offset + i * args.batch_size + j
+        batch_start = args.offset + i * batch_size
+        batch_end = batch_start + batch_size
+        for forum_note in tqdm.tqdm(conference_notes[batch_start:batch_end]):
             forum_dir = os.path.join(
                 args.output_dir, args.conference, forum_note.id
             )  # for {pre-rebuttal, rebuttal, final}_revision.{pdf, json}
-            forum_comment_dir = os.path.join(
-                forum_dir, "comments"
-            )  # for {comment_id}_{revision_index}.json
 
-            # three revisions: pre-rebuttal, rebuttal, final
-            forum_events = process_manuscript_revisions(forum_note, forum_idx, forum_dir, args)
+            os.makedirs(forum_dir, exist_ok=True)
 
-            # loop over comments in this forum
-            for comment_note in sorted(
-                    GUEST_CLIENT.get_all_notes(forum=forum_note.id),
-                    key=lambda x: x.tcdate
-            ):
-                # skip the forum note
-                if comment_note.id in [forum_note.id, forum_note.original]:
-                    continue
-
-                # process comments by authors, reviewers, metareviewers
-                forum_events += process_comment(comment_note, forum_idx, forum_note.id, forum_comment_dir)
-
-            # events += sorted(forum_events, key=lambda x: x.creation_date)
-            events += forum_events
-
-        # save metadata for forums in this batch
-        if n_batches == 1:
-            if args.offset == 0:
-                tsv_path = f"{args.output_dir}/metadata_{args.conference}.tsv"
-            else:
-                tsv_path = f"{args.output_dir}/metadata_{args.conference}_offset{args.offset}.tsv"
-        else:
-            if args.offset == 0:
-                tsv_path = f"{args.output_dir}/metadata_{args.conference}_{str(i).zfill(4)}.tsv"
-            else:
-                tsv_path = f"{args.output_dir}/metadata_{args.conference}_offset{args.offset}_{str(i).zfill(4)}.tsv"
-        with open(tsv_path, "w") as f:
-            writer = csv.DictWriter(f, fieldnames=orl.EVENT_FIELDS, delimiter="\t")
-            writer.writeheader()
-            for event in events:
-                writer.writerow(event._asdict())
-
+            process_forum(forum_note, forum_dir, args.conference)
         if args.debug:
-            exit()
+            break
 
 
 if __name__ == "__main__":

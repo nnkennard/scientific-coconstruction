@@ -6,22 +6,22 @@ EVENT_FIELDS = [
     "forum_idx",
     "forum_id",
     "referent_id",
-    "revision_index",   # 0 indicates the referent, 1 is the first actual revision
+    "revision_index",  # 0 indicates the referent, 1 is the first actual revision
     "note_id",
-    "reply_to",         # 'replyto' from OpenReview
+    "reply_to",  # 'replyto' from OpenReview
     # Event creator info
-    "initiator",        # from 'signatures' from OpenReview
-    "initiator_type",   # one of the InitiatorType strings
+    "initiator",  # from 'signatures' from OpenReview
+    "initiator_type",  # one of the InitiatorType strings
     # Date info
-    "creation_date",    # 'true creation date' from OpenReview
-    "mod_date",         # 'true modification date' from OpenReview
+    "creation_date",  # 'true creation date' from OpenReview
+    "mod_date",  # 'true modification date' from OpenReview
     # Event type info
-    "event_type",       # see below
+    "event_type",  # see below
     # File info
     "json_path",
     "pdf_status",
-    "pdf_path",         # None for comments
-    "pdf_checksum",     # None for comments
+    "pdf_path",  # None for comments
+    "pdf_checksum",  # None for comments
 ]
 Event = collections.namedtuple("Event", EVENT_FIELDS)
 
@@ -29,11 +29,12 @@ Event = collections.namedtuple("Event", EVENT_FIELDS)
 # A unified set of initiator types shared by all venues
 # We ignore events' initiated by public readers
 class InitiatorType(object):
-    CONFERENCE      = "conference"
-    AUTHOR          = "author"
-    REVIEWER        = "reviewer"
-    METAREVIEWER    = "metareviewer"
-    OTHER           = "other"
+    CONFERENCE = "conference"
+    AUTHOR = "author"
+    REVIEWER = "reviewer"
+    METAREVIEWER = "metareviewer"
+    OTHER = "other"
+
 
 # Map conference-specific initiator types to our unified set of initiator types.
 # See notebooks in the explore_conferences directory for conference-specific initiator types.
@@ -57,20 +58,22 @@ def get_initiator_and_type(signatures):
 # A unified set of event types shared by all venues
 class EventType(object):
     # paper
-    PRE_REBUTTAL_REVISION   = "pre-rebuttal_revision"
-    REBUTTAL_REVISION       = "rebuttal_revision"
-    FINAL_REVISION          = "final_revision"
+    PRE_REBUTTAL_REVISION = "pre-rebuttal_revision"
+    REBUTTAL_REVISION = "rebuttal_revision"
+    FINAL_REVISION = "final_revision"
     # comments
-    REVIEW              = "review"  # Official_Review which may have multiple revisions
-    METAREVIEW          = "metareview"
-    COMMENT             = "comment" # other official comments, with various initiator_type
-    PUBLIC_COMMENT      = "public_comment" # comments from public readers
+    REVIEW = "review"  # Official_Review which may have multiple revisions
+    METAREVIEW = "metareview"
+    COMMENT = "comment"  # other official comments, with various initiator_type
+    PUBLIC_COMMENT = "public_comment"  # comments from public readers
+
 
 REVISION_TO_INDEX = {
-    EventType.PRE_REBUTTAL_REVISION:    0,
-    EventType.REBUTTAL_REVISION:        1,
-    EventType.FINAL_REVISION:           2,
+    EventType.PRE_REBUTTAL_REVISION: 0,
+    EventType.REBUTTAL_REVISION: 1,
+    EventType.FINAL_REVISION: 2,
 }
+
 
 # Map conference-specific comment event types to our unified set of event types.
 # This function handles comment notes, but not paper revisions.
@@ -90,14 +93,15 @@ def get_comment_event_type(note):
 
 class PDFStatus(object):
     # for paper revisions
-    AVAILABLE       = "available"
-    DUPLICATE       = "duplicate"
-    FORBIDDEN       = "forbidden"
-    NOT_FOUND       = "not_found"
+    AVAILABLE = "available"
+    DUPLICATE = "duplicate"
+    FORBIDDEN = "forbidden"
+    NOT_FOUND = "not_found"
     # for comments
-    NOT_APPLICABLE  = "not_applicable"
+    NOT_APPLICABLE = "not_applicable"
+
 
 PDF_ERROR_STATUS_LOOKUP = {
-    "ForbiddenError"    : PDFStatus.FORBIDDEN,
-    "NotFoundError"     : PDFStatus.NOT_FOUND,
+    "ForbiddenError": PDFStatus.FORBIDDEN,
+    "NotFoundError": PDFStatus.NOT_FOUND,
 }
