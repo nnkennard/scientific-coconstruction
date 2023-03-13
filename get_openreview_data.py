@@ -91,7 +91,6 @@ def maybe_get_revision(note):
 # === PRODUCE DATA ===
 
 
-
 def get_milestone_revisions(forum_note, conference, forum_dir):
     # we care about the last revision in each of three stages
     revisions = {
@@ -114,7 +113,7 @@ def get_milestone_revisions(forum_note, conference, forum_dir):
         "decision_notification"
     ]
 
-    #for note in references:
+    # for note in references:
     #    print_timestamp(note.tmdate)
 
     for note in references:
@@ -146,20 +145,19 @@ def get_milestone_revisions(forum_note, conference, forum_dir):
         else:
             break
 
-
     for milestone, maybe_revision in revisions.items():
-        #print(milestone, end=" ")
+        # print(milestone, end=" ")
         flag = False
         if maybe_revision is not None:
             pdf_binary, x = maybe_revision
-            #print_timestamp(x)
-            flag=True
+            # print_timestamp(x)
+            flag = True
             if pdf_binary is not None:
                 write_pdf(pdf_binary, make_path([forum_dir], f"{milestone}.pdf"))
         if not flag:
             print(None)
 
-    #print("=" * 80)
+    # print("=" * 80)
     return sorted(revisions.items())
 
 
@@ -292,7 +290,9 @@ def process_forum(forum_note, forum_dir, conference):
                     review_rebuttal_pairs,
                     revisions,
                 )
-            ), f)
+            ),
+            f,
+        )
 
 
 def jsonify_forum(forum):
@@ -337,7 +337,7 @@ def main():
             invitation=conflib.CONFERENCE_TO_INVITATION[args.conference]
         ),
         key=lambda x: x.tcdate,
-    )[args.offset:]
+    )[args.offset :]
 
     # This is all very tedious but required because of processes sometimes getting killed
     batch_size = get_batch_size(args.batch_size, conference_notes)

@@ -265,7 +265,7 @@ def get_reviews(forum_notes):
 
 def get_metareview(forum_notes):
     for note in forum_notes:
-        if "decision" in note.content and 'comment' in note.content:
+        if "decision" in note.content and "comment" in note.content:
             return note.content["decision"], note.content["comment"]
 
     assert False

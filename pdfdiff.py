@@ -35,23 +35,23 @@ Global declarations
 """
 # Preference order of diff viewers (top most is most preferred)
 # Note that e.g.:
-# 
+#
 # kdiff3 works well with unicode things and can nicely do things like
-# '\phi'. 
+# '\phi'.
 #
 # Meld shows unicode well but I couldn't get it to wrap as I wanted from
 # the command line (you can use preferences though).
 #
-diffViewers = [ \
-        "kdiff3 --cs WordWrap=1 --cs ShowWhiteSpaceCharacters=0", \
-        "meld", \
-        "tkdiff", \
-        "xxdiff", \
-        "gvimdiff", \
-        "vimdiff", \
-        "diff", \
-        "opendiff", \
-        ]
+diffViewers = [
+    "kdiff3 --cs WordWrap=1 --cs ShowWhiteSpaceCharacters=0",
+    "meld",
+    "tkdiff",
+    "xxdiff",
+    "gvimdiff",
+    "vimdiff",
+    "diff",
+    "opendiff",
+]
 
 # pdftotext program with switches
 pdftotextProgram = "pdftotext"
@@ -98,9 +98,10 @@ The code is split into five sections:
 """
 
 
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # 1. Basics
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+
 
 def get_viewer_list():
     """
@@ -108,17 +109,17 @@ def get_viewer_list():
     """
     global diffViewers
 
-    return map(lambda s:(s.split())[0], diffViewers)
+    return map(lambda s: (s.split())[0], diffViewers)
 
 
 def is_command_available(prg):
     """
-    Detect whether prg exists. Note that it may have switches, i.e. 
+    Detect whether prg exists. Note that it may have switches, i.e.
     it will find "kdiff3 -a"
     """
     cmd = "which %s" % ((prg.split())[0])
     status, out = subprocess.getstatusoutput(cmd)
-    return (status == 0)
+    return status == 0
 
 
 def find_first(plist):
@@ -131,30 +132,30 @@ def find_first(plist):
     return None
 
 
-def apply_command_temp(prg,options,notfound,filename,prefix="",suffix=""):
+def apply_command_temp(prg, options, notfound, filename, prefix="", suffix=""):
     """
     Execute 'prg options filename tempout' if prg exists.
     Report 'notfound' if prg is not there.
 
     Returns (tempfileFilehandle,output) tuple.
     """
-    fout = tempfile.NamedTemporaryFile(mode='w+', suffix=suffix, prefix=prefix)
+    fout = tempfile.NamedTemporaryFile(mode="w+", suffix=suffix, prefix=prefix)
 
     if not is_command_available(prg):
         print("Error: %s" % notfound)
         sys.exit(1)
 
-    cmd = "%s %s \"%s\" \"%s\"" % (prg,options,filename,fout.name)
+    cmd = '%s %s "%s" "%s"' % (prg, options, filename, fout.name)
     output = subprocess.getoutput(cmd)
-    return (fout,output)
+    return (fout, output)
 
 
 def make_prefix(fname):
     """
     Turn file name into a prefix we can use.
     """
-    (head,tail) = os.path.split(fname)
-    (root,ext) = os.path.splitext(tail)
+    (head, tail) = os.path.split(fname)
+    (root, ext) = os.path.splitext(tail)
     return root + "_"
 
 
@@ -165,14 +166,14 @@ def get_filetype(filename):
     if is_command_available("file"):
         # On systems where we have 'file', this is a nice
         # and solid solution.
-        cmd = "file --brief \"%s\"" % filename
+        cmd = 'file --brief "%s"' % filename
         output = subprocess.getoutput(cmd)
         type = (output.split())[0].lower()
     else:
         # If we don't have 'file', we just take an educated
         # guess based on the filename extension.
-        (head,tail) = os.path.split(filename)
-        (root,ext) = os.path.splitext(tail)
+        (head, tail) = os.path.split(filename)
+        (root, ext) = os.path.splitext(tail)
         type = ext.lower()
         if type.startswith("."):
             type = type[1:]
@@ -181,9 +182,9 @@ def get_filetype(filename):
     #
     # Be aware we might be matching either the output from 'file' or the
     # extension!
-    if type in ['pdf','fdf']:
+    if type in ["pdf", "fdf"]:
         return "pdf"
-    elif type in ['postscript','ps']:
+    elif type in ["postscript", "ps"]:
         return "ps"
     else:
         # Default assumption: text
@@ -197,15 +198,16 @@ def fix_ff_problem(sentence):
     problem (probably latex, alternatively pdftotext ought to fix it).
     For now, we just stupidly revert the weird character combos.
     """
-    sentence = sentence.replace("ﬃ","ffi")
-    sentence = sentence.replace("ﬄ","ffl")
-    sentence = sentence.replace("ﬀ","ff")
+    sentence = sentence.replace("ﬃ", "ffi")
+    sentence = sentence.replace("ﬄ", "ffl")
+    sentence = sentence.replace("ﬀ", "ff")
     return sentence
 
 
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # 2. Text normalization
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+
 
 def is_sentence_end(c):
     """
@@ -239,7 +241,7 @@ def is_sentence_done(sentence):
     return False
 
 
-def flush_sentence(fout,forceNewLine = False):
+def flush_sentence(fout, forceNewLine=False):
     """
     Flush the sentence buffer.
     """
@@ -255,7 +257,7 @@ def flush_sentence(fout,forceNewLine = False):
     sentenceBuf = ""
 
 
-def normalize_text(fin,fout):
+def normalize_text(fin, fout):
     """
     Normalize the lines read from fin, and output to fout, which
     are file handles.
@@ -263,7 +265,7 @@ def normalize_text(fin,fout):
     global sentenceBuf
     global lastWordLength
 
-    sentenceBuf = ""    # stores unfinished sentences
+    sentenceBuf = ""  # stores unfinished sentences
     wordLength = 0
     lastWordLength = 0
     skipEnds = False
@@ -273,7 +275,7 @@ def normalize_text(fin,fout):
     for l in fin.readlines():
         # Cut of spacing from both ends
         ls = l.strip()
-        
+
         # Empty line or not?
         if ls == "":
             # This occurs when there is an empty line.
@@ -283,7 +285,7 @@ def normalize_text(fin,fout):
             # which is enforced by skipEnds.
             if not skipEnds:
                 flush_sentence(fout)
-                flush_sentence(fout,True)
+                flush_sentence(fout, True)
                 skipEnds = True
         else:
             # The file line is not empty, so this is some sort of
@@ -318,36 +320,42 @@ def normalize_text(fin,fout):
     fout.flush()
 
 
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # 3. Conversions from format A to B
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
-def ps_to_pdf(filename,prefix=""):
+
+def ps_to_pdf(filename, prefix=""):
     """
     ps to pdf conversion
     """
     prg = "ps2pdf"
-    notfound = "Could not find 'ps2pdf', which is needed for ps to pdf conversion." 
-    (fout,output) = apply_command_temp(prg,"",notfound,filename,prefix,".pdf")
+    notfound = "Could not find 'ps2pdf', which is needed for ps to pdf conversion."
+    (fout, output) = apply_command_temp(prg, "", notfound, filename, prefix, ".pdf")
     return fout
 
 
-def pdf_to_text(filename,prefix=""):
+def pdf_to_text(filename, prefix=""):
     """
     pdf to text conversion
     """
-    global pdftotextProgram,pdftotextOptions
+    global pdftotextProgram, pdftotextOptions
 
     notfound = """\
 Could not find '%s', which is needed for pdf to text conversion.
 %s is part of the 'xPdf' suite of programs, obtainable at:
   http://www.foolabs.com/xpdf/
-""" % (pdftotextProgram,pdftotextProgram)
-    (fout,output) = apply_command_temp(pdftotextProgram,pdftotextOptions,notfound,filename,prefix,".txt")
+""" % (
+        pdftotextProgram,
+        pdftotextProgram,
+    )
+    (fout, output) = apply_command_temp(
+        pdftotextProgram, pdftotextOptions, notfound, filename, prefix, ".txt"
+    )
     return fout
 
 
-def normalize_anything(filename,fout=sys.stdout):
+def normalize_anything(filename, fout=sys.stdout):
     """
     This function takes any file type and tries to apply converters
     until we can finall churn out normalized text.
@@ -360,9 +368,9 @@ def normalize_anything(filename,fout=sys.stdout):
     fhandle = None
     while filetype != "txt":
         if filetype == "pdf":
-            fhandle = pdf_to_text(filename,prefix=prefix)
+            fhandle = pdf_to_text(filename, prefix=prefix)
         elif filetype == "ps":
-            fhandle = ps_to_pdf(filename,prefix=prefix)
+            fhandle = ps_to_pdf(filename, prefix=prefix)
         else:
             print("Error: Don't know how to handle file type '%s'" % filetype)
             sys.exit(1)
@@ -375,10 +383,10 @@ def normalize_anything(filename,fout=sys.stdout):
         temphandle = fhandle
 
     if not fhandle:
-        fhandle = open(filename,'r')
+        fhandle = open(filename, "r")
 
     # Now fhandle is considered text
-    normalize_text(fhandle,fout)
+    normalize_text(fhandle, fout)
 
 
 def normalize_anything_tempfile(filename):
@@ -387,15 +395,16 @@ def normalize_anything_tempfile(filename):
     """
     prefix = make_prefix(filename)
     fout = tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", prefix=prefix)
-    normalize_anything(filename,fout)
+    normalize_anything(filename, fout)
     return fout
 
 
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # 4. High-level commands
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
-def view_diff(fnleft,fnright):
+
+def view_diff(fnleft, fnright):
     """
     Show the diff between two files using the first program that is
     found.
@@ -403,7 +412,7 @@ def view_diff(fnleft,fnright):
     global diffViewers
     global diffViewerPrefix
 
-    fleft  = normalize_anything_tempfile(fnleft)
+    fleft = normalize_anything_tempfile(fnleft)
     fright = normalize_anything_tempfile(fnright)
 
     viewers = []
@@ -411,18 +420,20 @@ def view_diff(fnleft,fnright):
         # Attempt to use the prefix as a program (overrides defaults)
         viewers = [diffViewerPrefix]
         # Also add filtered known ones
-        viewers += filter(lambda s:s.startswith(diffViewerPrefix),diffViewers)
+        viewers += filter(lambda s: s.startswith(diffViewerPrefix), diffViewers)
     # Add known ones
     viewers += diffViewers
 
     prg = find_first(viewers)
 
     if prg is None:
-        estr = "Error: Could not find a suitable diff viewer from the list %s" % (diffViewers)
+        estr = "Error: Could not find a suitable diff viewer from the list %s" % (
+            diffViewers
+        )
         print(estr)
         sys.exit(1)
 
-    cmd = "%s \"%s\" \"%s\"" % (prg,fleft.name,fright.name)
+    cmd = '%s "%s" "%s"' % (prg, fleft.name, fright.name)
     out = subprocess.getoutput(cmd)
     # Also print the result (e.g. for programs like diff that send
     # output to stdout)
@@ -455,13 +466,16 @@ Switches:
        the first available diffviewer from the list:
         %s
        that starts with <prefix>.
-""" % (progVersion, ", ".join(get_viewer_list()))
+""" % (
+        progVersion,
+        ", ".join(get_viewer_list()),
+    )
     print(helpstr.replace("PRG", progName))
 
 
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # 5. Main code
-#-------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 
 if __name__ == "__main__":
     """
@@ -480,21 +494,32 @@ if __name__ == "__main__":
     # Check for special commands
     while len(args) > 0:
         optcmd = args[0]
-        if optcmd in ["-?","-h","--help"]:
+        if optcmd in ["-?", "-h", "--help"]:
             # Help
             display_help()
             sys.exit(0)
 
-        elif optcmd in ["-d","--diffviewer"]:
+        elif optcmd in ["-d", "--diffviewer"]:
             # Selecting diff viewer prefix
             if len(args) < 2:
                 print("Error: Diff viewer preference requires a string prefix argument")
                 sys.exit(1)
             diffViewerPrefix = args[1]
-            if len(list(filter(lambda s:s.startswith(diffViewerPrefix),get_viewer_list()))) == 0:
+            if (
+                len(
+                    list(
+                        filter(
+                            lambda s: s.startswith(diffViewerPrefix), get_viewer_list()
+                        )
+                    )
+                )
+                == 0
+            ):
                 if not is_command_available(diffViewerPrefix):
-                    print("Error: program '%s' not found, and no viewer from the list %s starts with '%s'" %
-                          (diffViewerPrefix, get_viewer_list(), diffViewerPrefix))
+                    print(
+                        "Error: program '%s' not found, and no viewer from the list %s starts with '%s'"
+                        % (diffViewerPrefix, get_viewer_list(), diffViewerPrefix)
+                    )
                     sys.exit(1)
             args = args[2:]
 
@@ -504,7 +529,7 @@ if __name__ == "__main__":
                 normalize_anything(args[0])
                 sys.exit(0)
             elif len(args) == 2:
-                view_diff(args[0],args[1])
+                view_diff(args[0], args[1])
                 sys.exit(0)
             else:
                 print("Error: I don't know what to do with more than two files")

@@ -53,6 +53,8 @@ def get_revision_map(raw_revision_map):
 
 
 PLACEHOLDER = "$$$$$$$$$$$$$"
+
+
 def extract_text(pdf_path):
     output = subprocess.run(
         ["python", "pdfdiff.py", pdf_path], capture_output=True
@@ -65,12 +67,13 @@ def extract_text(pdf_path):
         .replace(PLACEHOLDER, "\n\n")
     )
 
+
 def tokenize(text):
-  doc = STANZA_PIPELINE(text)
-  tokens = []
-  for sentence in doc.sentences:
-    tokens.append([token.to_dict()[0]["text"] for token in sentence.tokens])
-  return tokens
+    doc = STANZA_PIPELINE(text)
+    tokens = []
+    for sentence in doc.sentences:
+        tokens.append([token.to_dict()[0]["text"] for token in sentence.tokens])
+    return tokens
 
 
 def get_version_tokens(details):
@@ -84,12 +87,13 @@ def get_version_tokens(details):
 def get_diffs(obj):
     revision_map = get_revision_map(obj["versions"])
     for version, details in revision_map.items():
-      tokens = get_version_tokens(details)
-      if tokens is None:
-        continue
-      with open(details[0].replace(".pdf", ".txt"), 'w') as f:
-        for sent in tokens:
-          f.write(" ".join(sent) + "\n")
+        tokens = get_version_tokens(details)
+        if tokens is None:
+            continue
+        with open(details[0].replace(".pdf", ".txt"), "w") as f:
+            for sent in tokens:
+                f.write(" ".join(sent) + "\n")
+
 
 def main():
     args = parser.parse_args()
