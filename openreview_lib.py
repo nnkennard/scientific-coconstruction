@@ -1,5 +1,5 @@
 import collections
-
+from datetime import datetime
 
 EVENT_FIELDS = [
     # Identifiers
@@ -102,6 +102,16 @@ class PDFStatus(object):
 
 
 PDF_ERROR_STATUS_LOOKUP = {
+<<<<<<< HEAD
     "ForbiddenError": PDFStatus.FORBIDDEN,
     "NotFoundError": PDFStatus.NOT_FOUND,
 }
+=======
+    "ForbiddenError"    : PDFStatus.FORBIDDEN,
+    "NotFoundError"     : PDFStatus.NOT_FOUND,
+}
+
+def print_timestamp(timestamp_int):
+    print(datetime.fromtimestamp(
+        timestamp_int / 1000).strftime('%Y-%m-%d   %H:%M:%S'))
+>>>>>>> 444511956469dcaf98dae4e18f5f2da56578df79
