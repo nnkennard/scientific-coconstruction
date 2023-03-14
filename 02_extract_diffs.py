@@ -29,7 +29,7 @@ def get_versions(discussion_obj):
 def main():
     args = parser.parse_args()
     for filename in tqdm.tqdm(
-        list(glob.glob(f"{args.data_dir}/{args.conference}/*/discussion.json")[:10])
+        list(glob.glob(f"{args.data_dir}/{args.conference}/*/discussion.json"))
     ):
 
         with open(filename, "r") as f:
@@ -45,11 +45,11 @@ def main():
                     versions[orl.EventType.FINAL_REVISION],
                 )
                 with open(
-                    filename.replace("discussion", "diffs").replace(".json", ".jsonl"),
+                    filename.replace("discussion", "diffs").replace(".json",
+                    ".json"),
                     "w",
                 ) as g:
-                    for d in diffs['diffs']:
-                        g.write(json.dumps(d))
+                  json.dump(diffs, g)
 
 
 if __name__ == "__main__":
