@@ -84,7 +84,7 @@ def get_version_tokens(details):
         return tokenize(extract_text(path))
 
 
-def get_diffs(obj):
+def get_text(obj):
     revision_map = get_revision_map(obj["versions"])
     for version, details in revision_map.items():
         tokens = get_version_tokens(details)
@@ -101,7 +101,7 @@ def main():
     for forum_dir in tqdm.tqdm(list(glob.glob(f"{args.data_dir}/{args.conference}/*"))):
         with open(f"{forum_dir}/discussion.json", "r") as f:
             obj = json.load(f)
-            diffs = get_diffs(obj)
+            diffs = get_text(obj)
 
 
 if __name__ == "__main__":
