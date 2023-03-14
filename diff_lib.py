@@ -72,9 +72,11 @@ def get_simple_diffs(first_tokens, last_tokens, min_len=5):
     for a, b, size in matching_blocks:
         if size >= min_len:
             # This matching block is large enough to delimit two separate nonmatching blocks
-            non_matching_blocks.append(NonMatchingBlock(
-                last_a_index, last_b_index, a - last_a_index, b - last_b_index
-            ))
+            non_matching_blocks.append(
+                NonMatchingBlock(
+                    last_a_index, last_b_index, a - last_a_index, b - last_b_index
+                )
+            )
             last_a_index = a + size
             last_b_index = b + size
 
@@ -92,7 +94,6 @@ def get_simple_diffs(first_tokens, last_tokens, min_len=5):
     # Map from indices in first_tokens to diffs at that index
     diff_map = {}
     for block in sorted(non_matching_blocks):
-        print(block.a_len, block.b_len)
         mini_first = first_tokens[block.a: block.a + block.a_len]
         mini_last = last_tokens[block.b: block.b + block.b_len]
         if abs(block.b_len - block.a_len) > 2000:
@@ -150,8 +151,6 @@ def get_simple_diffs(first_tokens, last_tokens, min_len=5):
     if not check_reconstruction(first_tokens, last_tokens, diff_map):
         print("Diff error")
         return None
-    else:
-        print("Yay")
 
     return diff_map
 
@@ -160,17 +159,18 @@ def make_diffs(first_tokens_sentencized, last_tokens_sentencized):
     first_tokens = sum(first_tokens_sentencized, [])
     last_tokens = sum(last_tokens_sentencized, [])
     if first_tokens == last_tokens:
-        return []
+        diff_list = []
+    else:
 
-    diff_map = get_simple_diffs(first_tokens, last_tokens)
-    print("D")
-    print(diff_map)
-    if diff_map is None:
-        return None
+        diff_map = get_simple_diffs(first_tokens, last_tokens)
+        if diff_map is None:
+            assert False
+            # return None
+        diff_list = sorted(
+            [d._asdict() for d in diff_map.values()], key=lambda x: x["location"]
+        )
 
     return {
         "tokens": {FIRST: first_tokens_sentencized, LAST: last_tokens_sentencized},
-        "diffs": sorted(
-            [d._asdict() for d in diff_map.values()], key=lambda x: x["location"]
-        ),
+        "diffs": diff_list,
     }
