@@ -45,13 +45,11 @@ def main():
                     versions[orl.EventType.FINAL_REVISION],
                 )
                 with open(
-                    filename.replace("discussion", "diffs").replace(".json",
-                    ".json"),
+                    filename.replace("discussion", "diffs").replace(".json", ".json"),
                     "w",
                 ) as g:
-                  json.dump(diffs, g)
+                    json.dump(diffs, g)
 
 
 if __name__ == "__main__":
     main()
- 
