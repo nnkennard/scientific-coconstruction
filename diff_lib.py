@@ -165,7 +165,8 @@ def make_diffs(first_tokens_sentencized, last_tokens_sentencized):
         diff_map = get_simple_diffs(first_tokens, last_tokens)
         if diff_map is None:
             diff_list = None
-        diff_list = sorted(
+        else:
+            diff_list = sorted(
             [d._asdict() for d in diff_map.values()], key=lambda x: x["location"]
         )
 
