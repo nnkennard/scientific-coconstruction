@@ -94,8 +94,8 @@ def get_simple_diffs(first_tokens, last_tokens, min_len=5):
     # Map from indices in first_tokens to diffs at that index
     diff_map = {}
     for block in sorted(non_matching_blocks):
-        mini_first = first_tokens[block.a: block.a + block.a_len]
-        mini_last = last_tokens[block.b: block.b + block.b_len]
+        mini_first = first_tokens[block.a : block.a + block.a_len]
+        mini_last = last_tokens[block.b : block.b + block.b_len]
         if abs(block.b_len - block.a_len) > 2000:
             # This is a very large diff, it's not worth looking for characters within it
             # Just replace the whole original sequence with the whole final sequence

@@ -6,7 +6,6 @@ import subprocess
 import tqdm
 
 import conference_lib as conflib
-import openreview_lib as orl
 
 
 parser = argparse.ArgumentParser(description="")
@@ -99,7 +98,7 @@ def main():
     args = parser.parse_args()
 
     for forum_dir in tqdm.tqdm(list(glob.glob(f"{args.data_dir}/{args.conference}/*"))):
-        with open(f"{forum_dir}/discussion.json", "r") as f:
+        with open(f"{forum_dir}/discussion2.json", "r") as f:
             obj = json.load(f)
             diffs = get_text(obj)
 
