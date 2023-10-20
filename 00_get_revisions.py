@@ -1,12 +1,23 @@
+import argparse
 import collections
 import json
 import openreview
 import os
-import scc_lib
+import stanza
 import tqdm
 
+import scc_lib
+
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('-o', '--output_dir', type=str, help='', required=True)
+parser.add_argument("-c", "--conference", type=str,
+                    choices=scc_lib.Conference.ALL,
+                    help="conference_year, e.g. iclr_2022", required=True)
+parser.add_argument('-s', '--status_file_prefix', default='./status_', type=str, help='')
+
 Review = collections.namedtuple("Review",
-                                "review_id review_content reviewer tcdate")
+                                "review_id sentences rating reviewer tcdate")
 
 INITIAL, FINAL = "initial final".split()
 
@@ -32,6 +43,7 @@ class PDFStatus(object):
 
 
 GUEST_CLIENT = openreview.Client(baseurl="https://api.openreview.net")
+SENTENCIZE_PIPELINE = stanza.Pipeline("en", processors="tokenize")
 
 PDF_ERROR_STATUS_LOOKUP = {
     "ForbiddenError": PDFStatus.FORBIDDEN,
@@ -64,21 +76,35 @@ def get_last_valid_reference(references):
     return None, None
 
 
+def get_review_sentences_and_rating(note):
+    if 'review' in note.content:
+        review_text = note.content['review']
+        rating = note.content['rating']
+    else:
+        review_text = note.content['main_review']
+        rating = note.content['recommendation']
+    return [sent.text
+            for sent in SENTENCIZE_PIPELINE(review_text).sentences], rating
+
+
 def write_metadata(forum_dir, forum, review_notes):
-    pass
-    # Get metareview
+    reviews = []
+    for review_note in review_notes:
+        review_sentences, rating = get_review_sentences_and_rating(review_note)
+        reviews.append(
+            Review(review_note.id, review_sentences, rating,
+                   export_signature(review_note),
+                   review_note.tcdate)._asdict())
 
 
-def retrieve_forum(forum, conference):
+def retrieve_forum(forum, conference, output_dir):
 
     # Get all reviews, find first review time
     review_notes = []
     for note in GUEST_CLIENT.get_all_notes(forum=forum.id):
         if (note.replyto == note.forum and
             ("main_review" in note.content or "review" in note.content)):
-            review_notes.append(
-                Review(note.id, json.dumps(note.content),
-                       export_signature(note), note.tcdate))
+            review_notes.append(note)
     if not review_notes:
         return ForumStatus.NO_REVIEWS
     first_review_time = min(rev.tcdate for rev in review_notes)
@@ -97,10 +123,9 @@ def retrieve_forum(forum, conference):
         references_before_review)
     if final_reference is not None and initial_reference is not None:
         if not final_reference.id == initial_reference.id:
-            forum_dir = f'temp_dir/{forum.id}'
+            forum_dir = f'{output_dir}/{forum.id}'
             os.makedirs(forum_dir, exist_ok=True)
             write_pdfs(forum_dir, initial_binary, final_binary)
-            # Write metadata
             write_metadata(forum_dir, forum, review_notes)
             return ForumStatus.COMPLETE
         else:
@@ -109,22 +134,26 @@ def retrieve_forum(forum, conference):
         return ForumStatus.NO_PDF
 
 
-def retrieve_conference(conference):
+def retrieve_conference(conference, output_dir):
     statuses = []
     forum_notes = GUEST_CLIENT.get_all_notes(
         invitation=scc_lib.INVITATIONS[conference])
-    for forum in tqdm.tqdm(forum_notes):
-        status = retrieve_forum(forum, conference)
+    for forum in tqdm.tqdm(forum_notes[:3]):
+        status = retrieve_forum(forum, conference, output_dir)
         statuses.append((forum.id, status))
     return statuses
 
 
 def main():
 
-    statuses = []
-    for conference in scc_lib.Conference.ALL:
-        print(conference)
-        statuses += retrieve_conference(conference)
+    args = parser.parse_args()
+
+    statuses = retrieve_conference(args.conference, args.output_dir)
+
+    with open(f'{args.status_file_prefix}{args.conference}.tsv', 'w') as f:
+        f.write('Conference\tForum\tStatus\n')
+        for forum, status in statuses:
+            f.write(f'{args.conference}\t{forum}\t{status}\n')
 
 
 if __name__ == "__main__":
