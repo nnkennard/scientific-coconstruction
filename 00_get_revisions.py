@@ -22,7 +22,7 @@ parser.add_argument("-c",
                     required=True)
 parser.add_argument('-s',
                     '--status_file_prefix',
-                    default='./status_',
+                    default='./statuses/status_',
                     type=str,
                     help='prefix for tsv file with status of all forums')
 
@@ -51,6 +51,11 @@ PDF_ERROR_STATUS_LOOKUP = {
 
 PDF_URL_PREFIX = "https://openreview.net/references/pdf?id="
 FORUM_URL_PREFIX = "https://openreview.net/forum?id="
+
+INVITATIONS = {
+    f"iclr_{year}": f"ICLR.cc/{year}/Conference/-/Blind_Submission"
+        for year in range(2018, 2023)
+        }
 
 # == Other helpers ===========================================================
 
@@ -206,8 +211,8 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
     statuses = []
     forum_notes = GUEST_CLIENT.get_all_notes(
-        invitation=scc_lib.INVITATIONS[args.conference])
-    for forum in tqdm.tqdm(forum_notes[:3]):
+        invitation=INVITATIONS[args.conference])
+    for forum in tqdm.tqdm(forum_notes):
         status, decision = retrieve_forum(forum, args.conference, args.output_dir)
         statuses.append((forum.id, status, decision))
 
