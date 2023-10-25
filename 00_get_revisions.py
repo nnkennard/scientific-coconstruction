@@ -54,15 +54,13 @@ FORUM_URL_PREFIX = "https://openreview.net/forum?id="
 
 INVITATIONS = {
     f"iclr_{year}": f"ICLR.cc/{year}/Conference/-/Blind_Submission"
-        for year in range(2018, 2023)
-        }
+    for year in range(2018, 2023)
+}
 
 # == Other helpers ===========================================================
 
 Review = collections.namedtuple("Review",
                                 "review_id sentences rating reviewer tcdate")
-
-INITIAL, FINAL = "initial final".split()
 
 
 class ForumStatus(object):
@@ -88,7 +86,8 @@ def get_binary(note):
 
 
 def write_pdfs(forum_dir, initial_binary, final_binary):
-    for binary, version in [(initial_binary, INITIAL), (final_binary, FINAL)]:
+    for binary, version in [(initial_binary, scc_lib.INITIAL),
+                            (final_binary, scc_lib.FINAL)]:
         assert binary is not None
         with open(f'{forum_dir}/{version}.pdf', "wb") as f:
             f.write(binary)
@@ -114,8 +113,7 @@ def get_review_sentences_and_rating(note):
 
 
 def write_metadata(forum_dir, forum, conference, initial_id, final_id,
-decision,
-                   review_notes):
+                   decision, review_notes):
     reviews = []
     for review_note in review_notes:
         review_sentences, rating = get_review_sentences_and_rating(review_note)
@@ -188,7 +186,7 @@ def retrieve_forum(forum, conference, output_dir):
 
             # Create subdirectory
             forum_dir = f'{output_dir}/{forum.id}'
-            os.makedirs(forum_dir, exist_ok=False)
+            os.makedirs(forum_dir, exist_ok=True)
 
             # Write pdfs and metadata
             write_pdfs(forum_dir, initial_binary, final_binary)
@@ -213,7 +211,8 @@ def main():
     forum_notes = GUEST_CLIENT.get_all_notes(
         invitation=INVITATIONS[args.conference])
     for forum in tqdm.tqdm(forum_notes):
-        status, decision = retrieve_forum(forum, args.conference, args.output_dir)
+        status, decision = retrieve_forum(forum, args.conference,
+                                          args.output_dir)
         statuses.append((forum.id, status, decision))
 
     with open(f'{args.status_file_prefix}{args.conference}.tsv', 'w') as f:

@@ -7,3 +7,4 @@ class Conference(object):
     ALL = [iclr_2018, iclr_2019, iclr_2020, iclr_2021, iclr_2022]
 
 
+INITIAL, FINAL = "initial final".split()
