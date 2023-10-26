@@ -3,7 +3,6 @@ import collections
 import json
 import openreview
 import os
-import stanza
 import tqdm
 
 import scc_lib
@@ -70,8 +69,6 @@ class ForumStatus(object):
     NO_REVISION = "no_revision"
 
 
-SENTENCIZE_PIPELINE = stanza.Pipeline("en", processors="tokenize")
-
 # ============================================================================
 
 
@@ -108,8 +105,10 @@ def get_review_sentences_and_rating(note):
     else:
         review_text = note.content['main_review']
         rating = note.content['recommendation']
-    return [sent.text
-            for sent in SENTENCIZE_PIPELINE(review_text).sentences], rating
+    return [
+        sent.text
+        for sent in scc_lib.SENTENCIZE_PIPELINE(review_text).sentences
+    ], rating
 
 
 def write_metadata(forum_dir, forum, conference, initial_id, final_id,

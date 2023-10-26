@@ -3,6 +3,8 @@ import difflib
 import myers
 import re
 
+import scc_lib
+
 Diff = collections.namedtuple("Diff",
                               "location old new",
                               defaults=(None, None, None))
@@ -184,13 +186,11 @@ def factored_simple_diffs(initial_tokens,
     return diff_map
 
 
-def make_diffs(initial_tokens_sentencized, final_tokens_sentencized):
-    initial_tokens = sum(initial_tokens_sentencized, [])
-    final_tokens = sum(final_tokens_sentencized, [])
+def make_diffs(initial_tokens, final_tokens):
     if initial_tokens == final_tokens:
         diff_list = []
     else:
-        diff_map = get_simple_diffs(initial_tokens, final_tokens)
+        diff_map = factored_simple_diffs(initial_tokens, final_tokens)
         if diff_map is None:  # An error has occurred?
             diff_list = None
         else:
@@ -199,8 +199,8 @@ def make_diffs(initial_tokens_sentencized, final_tokens_sentencized):
 
     return {
         "tokens": {
-            scc_lib.INITIAL: initial_tokens_sentencized,
-            scc_lib.FINAL: final_tokens_sentencized
+            scc_lib.INITIAL: initial_tokens,
+            scc_lib.FINAL: final_tokens
         },
         "diffs": diff_list,
     }
