@@ -91,11 +91,6 @@ def get_non_matching_blocks(matching_blocks, min_len, initial_len, final_len):
                 final_len - last_index_final,
             ))
 
-    # There was some code here that should actually never be triggered because
-    # of the way get_matching_blocks adds a final empty matching block if
-    # necessary. Replaced with an assert (should work)
-    assert last_index_initial + 1 == initial_len and last_index_final + 1 == final_len
-
     return non_matching_blocks
 
 

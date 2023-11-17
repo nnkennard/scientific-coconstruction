@@ -1,6 +1,7 @@
 import argparse
 import glob
 import json
+import os
 import stanza
 import tqdm
 
@@ -39,11 +40,12 @@ def main():
     args = parser.parse_args()
     for initial_filename in tqdm.tqdm(
             list(glob.glob(f"{args.data_dir}/*/initial.txt"))):
-        final_filename = f'{initial_filename[:-11]}final.txt'
-        diffs = make_diffs(get_tokens(initial_filename),
-                           get_tokens(final_filename))
-        with open(f'{initial_filename[:-11]}diffs.json', 'w') as f:
-            f.write(json.dumps(diffs, indent=2))
+        if not os.path.isfile(f'{initial_filename[:-11]}diffs.json'):
+            final_filename = f'{initial_filename[:-11]}final.txt'
+            diffs = make_diffs(get_tokens(initial_filename),
+                               get_tokens(final_filename))
+            with open(f'{initial_filename[:-11]}diffs.json', 'w') as f:
+                f.write(json.dumps(diffs, indent=2))
 
 
 if __name__ == "__main__":
