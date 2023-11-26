@@ -21,7 +21,6 @@ parser.add_argument(
 
 PLACEHOLDER = "$$$$$$$$$$$$$"
 
-
 # ------------------------------------------------------------------------
 # eLife via GoogleStorage
 # ------------------------------------------------------------------------
@@ -57,7 +56,7 @@ def get_ms_id(pdf_path: str) -> int:
         # usually, MS id is in final position of dir
         ms_id = ms_info.split("-")[-1]
         return int(ms_id)
-    
+
     except:
         # about 3 (of 10s thousands) that don't conform
         print(f"dropping {pdf_path}")
@@ -104,9 +103,10 @@ def get_storage_paths():
         dfs_dct[stage] = df
 
     # Merge
-    path_df = dfs_dct["accepted"].merge(
-        dfs_dct["initial"], how="left", on="ms", validate="one_to_one"
-    )
+    path_df = dfs_dct["accepted"].merge(dfs_dct["initial"],
+                                        how="left",
+                                        on="ms",
+                                        validate="one_to_one")
 
     # Drop if missing path; few (~3)
     path_df.dropna(inplace=True)
@@ -132,16 +132,10 @@ def make_local_dir(data_dir, ms_id):
 
 
 def extract_text(pdf_path):
-    output = subprocess.run(
-        ["python", "pdfdiff.py", pdf_path], capture_output=True
-    ).stdout
-    return (
-        output.decode()
-        .replace("-\n", "")
-        .replace("\n\n", PLACEHOLDER)
-        .replace("\n", " ")
-        .replace(PLACEHOLDER, "\n\n")
-    )
+    output = subprocess.run(["python", "pdfdiff.py", pdf_path],
+                            capture_output=True).stdout
+    return (output.decode().replace("-\n", "").replace(
+        "\n\n", PLACEHOLDER).replace("\n", " ").replace(PLACEHOLDER, "\n\n"))
 
 
 def main():
@@ -156,7 +150,7 @@ def main():
         local_dir = make_local_dir(args.data_dir, ms_id)
 
         for stage, storage_path in paths_dct.items():
-            
+
             cleaned_stage = stage.split("_")[0]
 
             # summon blob object
@@ -164,7 +158,7 @@ def main():
 
             # hack to move blob data to local dir
             pdf_path = local_dir + f"{ms_id}_{cleaned_stage}"
-            
+
             with blob.open("rb") as raw_blob:
                 with open(f"{pdf_path}.pdf", "wb") as temp:
                     temp.write(raw_blob.read())

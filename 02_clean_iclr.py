@@ -1,26 +1,32 @@
 import argparse
-import codecs
 import glob
 import json
 import sys
 import re
+import tqdm
+
+parser = argparse.ArgumentParser(description="")
+parser.add_argument(
+    "-d",
+    "--data_dir",
+    default="forums/",
+    type=str,
+    help="Data dir",
+)
 
 UNDER_REVIEW_RE = re.compile(
     "Under review as a conference paper at ICLR 20[0-9]{2}")
-PUBLISHED_RE = re.compile(
-    "Published as a conference paper at ICLR 20[0-9]{2}")
-ABSTRACT_HEADER_RE = re.compile(
-    "^A\sBSTRACT")
-SECTION_HEADER_RE = re.compile(
-    "^[A-Z]\s?[A-Z+]")
+PUBLISHED_RE = re.compile("Published as a conference paper at ICLR 20[0-9]{2}")
+ABSTRACT_HEADER_RE = re.compile("^A\sBSTRACT")
+SECTION_HEADER_RE = re.compile("^[A-Z]\s?[A-Z+]")
+
 
 def mostly_caps(line):
     letters = "".join(line.split())
-    return len([x for x in letters if x.isupper()])/len(letters) > 0.8
+    return len([x for x in letters if x.isupper()]) / len(letters) > 0.8
+
 
 def clean_file(filename):
-
-    print(filename)
 
     with open(filename, 'r') as f:
         lines = [line.strip() for line in f.readlines()]
@@ -64,12 +70,13 @@ def clean_file(filename):
 
     return "\n".join(final_lines)
 
+
 def main():
-    for filename in glob.glob(f'{sys.argv[1]}/*/*_raw.txt'):
+    args = parser.parse_args()
+    for filename in tqdm.tqdm(list(glob.glob(f'{args.data_dir}/*/*_raw.txt'))):
         with open(filename.replace("_raw", ""), 'w') as f:
             f.write(clean_file(filename))
 
 
 if __name__ == "__main__":
     main()
-
