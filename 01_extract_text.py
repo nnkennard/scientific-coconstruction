@@ -28,7 +28,7 @@ def main():
     args = parser.parse_args()
     for pdf_path in tqdm.tqdm(list(glob.glob(f"{args.data_dir}/*/*.pdf"))):
         text = extract_text(pdf_path)
-        output_path = f'{pdf_path[:-4]}.txt'
+        output_path = f'{pdf_path[:-4]}_raw.txt'
         with open(output_path, 'w') as f:
             f.write(text)
 
