@@ -181,7 +181,9 @@ def factored_simple_diffs(initial_tokens,
     return diff_map
 
 
-def make_diffs(initial_tokens, final_tokens):
+def make_diffs(unflat_initial_tokens, unflat_final_tokens):
+    initial_tokens = sum(unflat_initial_tokens, [])
+    final_tokens = sum(unflat_final_tokens, [])
     if initial_tokens == final_tokens:
         diff_list = []
     else:
@@ -194,8 +196,8 @@ def make_diffs(initial_tokens, final_tokens):
 
     return {
         "tokens": {
-            scc_lib.INITIAL: initial_tokens,
-            scc_lib.FINAL: final_tokens
+            scc_lib.INITIAL: unflat_initial_tokens,
+            scc_lib.FINAL: unflat_final_tokens
         },
         "diffs": diff_list,
     }

@@ -2,7 +2,6 @@ import argparse
 import glob
 import json
 import os
-import stanza
 import tqdm
 
 import scc_lib
@@ -31,9 +30,9 @@ def get_tokens(filename):
     with open(filename, 'r') as f:
         text = f.read()
         return list([
-            t['text'] for s in scc_lib.SENTENCIZE_PIPELINE(text).to_dict()
-            for t in s
-        ])
+            t.to_dict()[0]['text'] for t in s.tokens]
+            for s in scc_lib.SENTENCIZE_PIPELINE(text).sentences
+        )
 
 
 def main():
