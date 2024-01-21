@@ -1,0 +1,17 @@
+body {
+  background-color: #355c7d;
+}
+
+diffdel { 
+  background-color: #ffb3b3;
+  text-decoration: line-through;
+  margin-right: 4px;
+  margin-left: 4px;
+}
+
+
+diffadd { 
+  background-color: #b3ffd7;
+  margin-right: 4px;
+  margin-left: 4px;
+}
