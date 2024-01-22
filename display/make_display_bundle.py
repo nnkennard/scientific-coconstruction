@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tarfile
+import tqdm
 
 parser = argparse.ArgumentParser(description="")
 parser.add_argument("-d", "--data_dir", default="", type=str, help="")
@@ -55,15 +56,13 @@ def main():
 
     for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
         forum = diff_dir.split("/")[-2]
-        print(forum)
         os.makedirs(f'{args.output_dir}/bundle_{forum}', exist_ok=True)
         with open(f'{args.data_dir}/{forum}/diffs.json', 'r') as f:
             obj = json.load(f)
             initial_tokens = obj['tokens']['initial']
             flat_initial_tokens = sum(initial_tokens, [])
             diff_index = 1
-            for diff in obj['diffs'][:10]:
-                print(diff_index)
+            for diff in tqdm.tqdm(obj['diffs']):
                 diff_identifier = f'{forum}|||{diff_index}'
                 diff_text = get_diff_text(diff, flat_initial_tokens)
                 html_text = str(template_text).replace(
