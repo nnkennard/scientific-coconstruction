@@ -89,6 +89,7 @@ def main():
                     os.path.normpath(f'{args.output_dir}/bundle_{forum}.tgz'),
                     "w:gz") as tar:
                 tar.add(source_dir, arcname=os.path.basename(source_dir))
+            shutil.rmtree(source_dir)
 
 
 if __name__ == "__main__":
