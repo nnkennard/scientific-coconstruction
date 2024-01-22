@@ -1,5 +1,6 @@
 import argparse
 import glob
+import os
 import tqdm
 import subprocess
 
@@ -27,10 +28,11 @@ def extract_text(pdf_path):
 def main():
     args = parser.parse_args()
     for pdf_path in tqdm.tqdm(list(glob.glob(f"{args.data_dir}/*/*.pdf"))):
-        text = extract_text(pdf_path)
-        output_path = f'{pdf_path[:-4]}_raw.txt'
-        with open(output_path, 'w') as f:
-            f.write(text)
+        if not os.path.isfile(f'{pdf_path[:-4]}_raw.txt'):
+            text = extract_text(pdf_path)
+            output_path = f'{pdf_path[:-4]}_raw.txt'
+            with open(output_path, 'w') as f:
+                f.write(text)
 
 
 if __name__ == "__main__":

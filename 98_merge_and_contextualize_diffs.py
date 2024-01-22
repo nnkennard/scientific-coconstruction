@@ -22,17 +22,27 @@ def maybe_tokens(maybe_text):
         return maybe_text
 
 
-# {'location': 1644, 'old': ['Under', 'review'], 'new': ['Published']}
-def is_header(diff):
-    if diff['old'] == ['Under', 'review'] and diff['new'] == ['Published']:
-        print('x')
-        return True
-    elif diff['new'] is not None and 'Published' in diff['new']:
-        print("****", diff)
-    return False
+def build_sentence_lookup(sentences):
+    lookup = []
+    for sent_i, sentence in enumerate(sentences):
+        for token in sentence:
+            lookup.append(sent_i)
+    return lookup
 
 
 def clean_diffs(filename):
+
+    with open(filename, 'r') as f:
+        obj = json.load(f)
+
+    initial_token_lookup = build_sentence_lookup(obj['tokens']['initial'])
+
+    for diff_1, diff_2 in zip(obj['diffs'][:-1], obj['diffs'][1:]):
+        print(initial_token_lookup[diff_1['location']] == initial_token_lookup[
+            diff_2['location']])
+
+
+def old_merge(filename):
     with open(filename, 'r') as f:
         obj = json.load(f)
 

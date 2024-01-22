@@ -16,23 +16,11 @@ def read_sentencized(filename):
         return [line.split() for line in f.readlines()]
 
 
-def get_versions(discussion_obj):
-    versions = {}
-    for a, b, c in discussion_obj["versions"]:
-        if b is None or c is None:
-            assert b is None and c is None
-        else:
-            versions[a] = read_sentencized(b.replace("pdf", "txt"))
-    return versions
-
-
 def get_tokens(filename):
     with open(filename, 'r') as f:
         text = f.read()
-        return list([
-            t.to_dict()[0]['text'] for t in s.tokens]
-            for s in scc_lib.SENTENCIZE_PIPELINE(text).sentences
-        )
+        return list([t.to_dict()[0]['text'] for t in s.tokens]
+                    for s in scc_lib.SENTENCIZE_PIPELINE(text).sentences)
 
 
 def main():
