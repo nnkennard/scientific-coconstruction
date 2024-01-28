@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description="")
 parser.add_argument("-d", "--data_dir", default="", type=str, help="")
 parser.add_argument("-o",
                     "--output_dir",
-                    default="bundles/",
+                    default="v1/bundles/",
                     type=str,
                     help="")
 
@@ -56,6 +56,17 @@ def main():
 
     for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
         forum = diff_dir.split("/")[-2]
+
+        # Just for printing samples
+        # raw_dir = f'{args.output_dir}/raw_{forum}'
+        # shutil.copytree(f'{args.data_dir}/{forum}/', raw_dir)
+        # with tarfile.open(
+        #       os.path.normpath(f'{args.output_dir}/raw_{forum}.tgz'),
+        #       "w:gz") as tar:
+        #     tar.add(raw_dir, arcname=f'raw_{forum}/')
+        # shutil.rmtree(raw_dir)
+        # continue
+
         os.makedirs(f'{args.output_dir}/bundle_{forum}', exist_ok=True)
         with open(f'{args.data_dir}/{forum}/diffs.json', 'r') as f:
             obj = json.load(f)
