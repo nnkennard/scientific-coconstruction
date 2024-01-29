@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description="")
 parser.add_argument("-d", "--data_dir", default="", type=str, help="")
 parser.add_argument("-o",
                     "--output_dir",
-                    default="v1/bundles/",
+                    default="v2/bundles/",
                     type=str,
                     help="")
 
