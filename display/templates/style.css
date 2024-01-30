@@ -2,8 +2,9 @@ body {
   background-color: #355c7d;
 }
 
-diffdel { 
-  background-color: #ffb3b3;
+diffdel {
+    font-weight: bold;
+  background-color: #f1948a;
   text-decoration: line-through;
   margin-right: 4px;
   margin-left: 4px;
@@ -11,7 +12,22 @@ diffdel {
 
 
 diffadd { 
-  background-color: #b3ffd7;
+    font-weight: bold;
+  background-color: #76d7c4;
+  margin-right: 4px;
+  margin-left: 4px;
+}
+
+bgdel { 
+  background-color: #fad8b8;
+  text-decoration: line-through;
+  margin-right: 4px;
+  margin-left: 4px;
+}
+
+
+bgadd { 
+  background-color: #d1f2eb;
   margin-right: 4px;
   margin-left: 4px;
 }
