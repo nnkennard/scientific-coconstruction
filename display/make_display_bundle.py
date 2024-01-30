@@ -20,6 +20,10 @@ OLD_START, OLD_END, NEW_START, NEW_END = [f"<{label}>"
     #for label in "old /old new /new".split()]
     for label in "diffdel /diffdel diffadd /diffadd".split()]
 
+with open('templates/template.html', 'r') as f:
+    TEMPLATE_TEXT = f.read()
+
+
 
 def get_all_tokens(diff):
     if diff["old"] is None:
@@ -85,65 +89,59 @@ def highlight_diffs(diffs_obj):
 
     return highlighted_tokens, diff_anchors
 
-
-def main():
-
-    args = parser.parse_args()
-
-    with open('templates/template.html', 'r') as f:
-        template_text = f.read()
-
-    for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
-        forum = diff_dir.split("/")[-2]
-
-        #save_raw_samples(args.output_dir, args.data_dir, forum)
-        #continue
-
-        with open(f'{args.data_dir}/{forum}/diffs.json', 'r') as f:
-            obj = json.load(f)
-
-        highlighted_tokens, diff_map = highlight_diffs(obj)
-
-        with open('blerp.html', 'w') as f:
-            html_text = str(template_text).replace("DIFF_TEXT",
-                " ".join(highlighted_tokens))
-            f.write(html_text)
-
-        dsds
-
-        os.makedirs(f'{args.output_dir}/bundle_{forum}', exist_ok=True)
-        initial_tokens = obj['tokens']['initial']
-        flat_initial_tokens = sum(initial_tokens, [])
-        diff_index = 1
-        for diff in tqdm.tqdm(obj['diffs']):
-            diff_identifier = f'{forum}|||{diff_index}'
-            diff_text = get_diff_text(diff, flat_initial_tokens)
-            html_text = str(template_text).replace(
-                "DIFF_IDENTIFIER",
-                diff_identifier).replace("DIFF_TEXT", diff_text).replace(
-                    "PREV_INDEX", str(diff_index - 1)).replace(
-                        "NEXT_INDEX", str(diff_index + 1)).replace(
-                            "ICLR_LINK",
-                            f"https://openreview.net/forum?id={forum}")
-            with open(
-                    f'{args.output_dir}/bundle_{forum}/{diff_index}.html',
-                    'w') as f:
-                f.write(html_text)
-            diff_index += 1
-        for aux_file in ["style.css", "0.html", "last.html"]:
-            shutil.copyfile(
+def complete_bundle(forum, diff_index):
+    for aux_file in ["style.css", "0.html", "last.html"]:
+        shutil.copyfile(
                 f"templates/{aux_file}",
                 f'{args.output_dir}/bundle_{forum}/{aux_file}')
         shutil.move(f'{args.output_dir}/bundle_{forum}/last.html',
                     f'{args.output_dir}/bundle_{forum}/{diff_index}.html')
-        source_dir = f'{args.output_dir}/bundle_{forum}/'
-        with tarfile.open(
-                    os.path.normpath(f'{args.output_dir}/bundle_{forum}.tgz'),
-                    "w:gz") as tar:
-                tar.add(source_dir, arcname=os.path.basename(source_dir))
-        shutil.rmtree(source_dir)
+
+    source_dir = f'{args.output_dir}/bundle_{forum}/'
+    with tarfile.open(os.path.normpath(
+        f'{args.output_dir}/bundle_{forum}.tgz'), "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+    shutil.rmtree(source_dir)
+
+def build_core_bundle(diff_dir):
+    forum = diff_dir.split("/")[-2]
+
+    #save_raw_samples(args.output_dir, args.data_dir, forum)
+    #continue
+
+    with open(f'{args.data_dir}/{forum}/diffs.json', 'r') as f:
+        obj = json.load(f)
+    highlighted_tokens, diff_map = highlight_diffs(obj)
+
+    os.makedirs(f'{args.output_dir}/bundle_{forum}', exist_ok=True)
+    initial_tokens = obj['tokens']['initial']
+    flat_initial_tokens = sum(initial_tokens, [])
+    diff_index = 1
+    for diff in tqdm.tqdm(obj['diffs']):
+        diff_identifier = f'{forum}|||{diff_index}'
+        diff_text = get_diff_text(diff, flat_initial_tokens)
+        html_text = str(TEMPLATE_TEXT).replace(
+            "DIFF_IDENTIFIER",
+            diff_identifier).replace("DIFF_TEXT", diff_text).replace(
+                "PREV_INDEX", str(diff_index - 1)).replace(
+                    "NEXT_INDEX", str(diff_index + 1)).replace(
+                        "ICLR_LINK",
+                        f"https://openreview.net/forum?id={forum}")
+        with open(
+                f'{args.output_dir}/bundle_{forum}/{diff_index}.html',
+                'w') as f:
+            f.write(html_text)
+        diff_index += 1
+    return forum, diff_index
 
 
+
+def main():
+
+    args = parser.parse_args()
+    for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
+        forum, diff_index = build_core_bundle(diff_dir)
+        complete_bundle(forum, diff_index)
 
 if __name__ == "__main__":
     main()
