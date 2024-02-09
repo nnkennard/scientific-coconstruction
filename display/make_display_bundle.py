@@ -80,24 +80,12 @@ def highlight_diffs(diffs_obj):
     first_diff_start = diffs_obj['diffs'][0]['location']
     highlighted_tokens = flat_initial_tokens[:first_diff_start]
 
-    for i, t in enumerate(flat_initial_tokens):
-        print("((", i, t)
-
     diff_anchors = []
     for i, diff in enumerate(diffs_obj['diffs']):
-        #print("=" * 80)`
-        print(diff)
         start = len(highlighted_tokens)
-        #print(highlighted_tokens[-1])
-        #print("Start in new token list:" , start)
         for old_new in ['old', 'new']:
             if diff[old_new] is None or not diff[old_new]:
-                #print("Nothing in ", old_new)
                 continue
-            #print("*", [
-            #    MAIN_TAGS['open'][old_new]
-            #] + diff[old_new] + [MAIN_TAGS['close'][old_new]])
-
             highlighted_tokens += [
                 MAIN_TAGS['open'][old_new]
             ] + diff[old_new] + [MAIN_TAGS['close'][old_new]]
@@ -106,7 +94,6 @@ def highlight_diffs(diffs_obj):
         if i == len(diffs_obj['diffs']) - 1:
             continue
         old, new = get_all_tokens(diff)
-        print(old, new)
 
         # in between start
         if old:
@@ -125,17 +112,12 @@ def highlight_diffs(diffs_obj):
         # first token from old tokens (after diff)
 
         in_between_part = flat_initial_tokens[in_between_start:in_between_end]
-        print("in between part")
-        print(" ".join(in_between_part))
         highlighted_tokens += in_between_part
 
     final_diff = diffs_obj['diffs'][-1]
     final_diff_old, _ = get_all_tokens(final_diff)
     final_diff_end = final_diff['location'] + len(final_diff_old)
     highlighted_tokens += flat_initial_tokens[final_diff_end:]
-
-    for t in highlighted_tokens:
-        print("##", t)
 
     return highlighted_tokens, diff_anchors
 
@@ -225,12 +207,9 @@ def main():
 
     args = parser.parse_args()
     for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
-        if 'rcO' in diff_dir:
-            #if True:
-            print(diff_dir)
-            forum, diff_index = build_core_bundle(diff_dir, args.data_dir,
-                                                  args.output_dir)
-            complete_bundle(forum, diff_index, args.output_dir)
+        forum, diff_index = build_core_bundle(diff_dir, args.data_dir,
+                                              args.output_dir)
+        complete_bundle(forum, diff_index, args.output_dir)
 
 
 if __name__ == "__main__":
