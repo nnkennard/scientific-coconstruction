@@ -206,7 +206,9 @@ def build_core_bundle(diff_dir, data_dir, output_dir):
 def main():
 
     args = parser.parse_args()
+    print(args.data_dir)
     for diff_dir in sorted(glob.glob(f"{args.data_dir}/*/"))[:10]:
+        print(diff_dir)
         forum, diff_index = build_core_bundle(diff_dir, args.data_dir,
                                               args.output_dir)
         complete_bundle(forum, diff_index, args.output_dir)

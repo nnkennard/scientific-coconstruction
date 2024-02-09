@@ -68,7 +68,7 @@ def main():
 
     for initial_filename in tqdm.tqdm(
         list(
-        glob.glob('/gypsum/work1/mccallum/nnayak/forums/*/initial.pdf'))[:10]):
+        glob.glob('/gypsum/work1/mccallum/nnayak/forums/*/initial.pdf'))):
 
         for filename in [initial_filename,
             initial_filename.replace('initial.pdf', 'final.pdf')]:
