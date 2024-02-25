@@ -9,6 +9,7 @@ from sciencebeam_parser.app.parser import ScienceBeamParser
 import collections
 import glob
 import json
+import os
 import tqdm
 import xml.etree.ElementTree as ET
 
@@ -73,14 +74,18 @@ def main():
         for filename in [initial_filename,
             initial_filename.replace('initial.pdf', 'final.pdf')]:
             output_filename = filename.replace('.pdf', '_sbraw.json')
+            if os.path.exists(output_filename):
+                continue
 
-            with sciencebeam_parser.get_new_session() as session:
-                session_source = session.get_source(
-                    filename, MediaTypes.PDF)
-                converted_file = session_source.get_local_file_for_response_media_type(
-                    MediaTypes.TEI_XML)
-                with open(output_filename, 'w') as f:
-                    json.dump(parse_xml(converted_file), f)
-
+            try:
+                with sciencebeam_parser.get_new_session() as session:
+                    session_source = session.get_source(
+                        filename, MediaTypes.PDF)
+                    converted_file = session_source.get_local_file_for_response_media_type(
+                        MediaTypes.TEI_XML)
+                    with open(output_filename, 'w') as f:
+                        json.dump(parse_xml(converted_file), f)
+            except Exception as e:
+                print("Error", filename)
 if __name__ == "__main__":
     main()
