@@ -177,16 +177,15 @@ def main():
     for i, forum_note in enumerate(
             openreview.tools.iterget_notes(guest_client,
                                            invitation=orl.INVITATION)):
-        if args.debug and i == 10:
+        if args.debug and i == 100:
             break
 
         status = process_forum(forum_note, args.output_dir)
-        statuses.append({
-        "forum_id": forum_note.id,
-        "status": status})
+        statuses.append({"forum_id": forum_note.id, "status": status})
         time.sleep(4)
 
     pd.DataFrame.from_dict(statuses).to_csv(args.result_file)
+
 
 if __name__ == "__main__":
     main()
