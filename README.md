@@ -1,38 +1,11 @@
-# Scientific Co-construction
+# Scientific co-construction
 
-Sadly this entire repository is still itself under construction, BUT the code to extract fine-grained diffs from PDF pairs is done.
+The code in this directory is separated into three parts:
 
-## Fine-grained diff extraction
+1) Extraction: includes downloading data from OpenReview, parsing manuscript versions, extracting the diffs from the parsed manuscripts. The first steps can be bypassed so that non-OpenReview (i.e. LSJ) manuscripts can be used.
 
-1. Setup:
-```
-conda create
-conda activate
-python -m pip install -r requirements.txt
-```
+2) Analysis: includes taxonomizing the diffs, analyzing the structure of manuscripts into sections and the relation between diffs and sections.
 
-2. Prepare your data:
-Create a directory containing the PDF pairs, each under a subdirectory bearing an identifier:
-```
-scientific-coconstruction/
-└─── my_pdf_pairs/
-     └─── pdf_identifier_1/
-          | initial.pdf  
-          | final.pdf
-     └─── pdf_identifier_2/
-          | initial.pdf  
-          | final.pdf
-     └─── ...
-```
+3) Linking: linking review comments to diffs using BM25.
 
-3. Extract text:
-```
-python 01_extract_text.py -d my_pdf_pairs/
-```
-This script creates `initial.txt` and `final.txt` in each subdirectory of `my_pdf_pairs`.
-
-4. Extract diffs:
-```
-python 02_extract_diffs.py -d my_pdf_pairs/
-```
-This script creates `diffs.json` in each subdirectory of `my_pdf_pairs`.
+The code in the extraction section also includes extraction of information about authors. This information will be used later.
