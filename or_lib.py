@@ -12,11 +12,13 @@ class PDFStatus(object):
     FORBIDDEN = "forbidden"
     NOT_FOUND = "not_found"
 
+
 class ForumStatus(object):
     COMPLETE = "complete"
     NO_REVIEWS = "no_reviews"
     NO_PDF = "no_pdf"
     NO_REVISION = "no_revision"
+
 
 PDF_ERROR_STATUS_LOOKUP = {
     "ForbiddenError": PDFStatus.FORBIDDEN,
@@ -28,33 +30,39 @@ INVITATION = 'ICLR.cc/2022/Conference/-/Blind_Submission'
 
 # == Helpers ==================================================================
 
+
 def export_signature(note):
     (signature, ) = note.signatures
     return signature.split("/")[-1]
 
 
 def is_review(note):
-  if note.forum == note.replyto: # top level note
-    if '2022' in note.invitation:
-      return 'Reviewer' in note.signatures[0]
-  else:
-    return False
+    if note.forum == note.replyto:  # top level note
+        if '2022' in note.invitation:
+            return 'Reviewer' in export_signature(note)
+    else:
+        return False
 
-def get_decision(forum_note):
+
+def is_by_authors(note):
+    if '2022' in note.invitation:
+        return 'Authors' in export_signature(note)
+
+
+def get_decision(forum_notes):
     decision = None
-    for note in openreview.tools.iterget_notes(
-        guest_client, forum=forum_note.id):
-      if '2022' in forum_note.invitation:
-        if 'decision' in note.content:
-          decision = note.content['decision']
-          break
+    for note in forum_notes:
+        if '2022' in note.invitation and 'Decision' in note.invitation:
+            decision = note.content['decision']
+            break
     assert decision is not None
-    return {'decision': decision}
+    return decision
 
 
 # == PDF helpers ==============================================================
 
-def get_binary(note):
+
+def get_binary(note, guest_client):
     try:  # try to get the PDF for this paper revision
         pdf_binary = guest_client.get_pdf(note.id, is_reference=True)
         pdf_status = PDFStatus.AVAILABLE
@@ -64,11 +72,12 @@ def get_binary(note):
     return pdf_status, pdf_binary
 
 
-def get_last_valid_reference(references):
-    for r in reversed(references):
-        status, binary = get_binary(r)
+def get_last_valid_reference(references, guest_client):
+    # Going over references in reverse order
+    for r in reversed(sorted(references, key=lambda x: x.tcdate)):
+        # Maybe get pdf
+        status, binary = get_binary(r, guest_client)
         if status == PDFStatus.AVAILABLE:
             return (r, binary)
+    # TODO: Should this give the PDF status instead? Do we care?
     return None, None
-
-
